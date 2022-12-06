@@ -3,6 +3,10 @@
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 
+### Backend Code:
+
+Backend code located at: [https://github.com/sf0912/smartbrain-api](https://github.com/sf0912/smartbrain-api)
+
 ## Available Scripts
 
 In the project directory, you can run:
