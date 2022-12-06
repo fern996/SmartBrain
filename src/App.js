@@ -14,25 +14,28 @@ const app = new Clarifai.App({
  apiKey: '7f21b13fcb3841d8bd75133ff6812219'
 });
 
-class App extends Component{
-  constructor(){
-    super();
-    this.state = {
+const initialState = {
+  
       input: '',
       imageUrl: '',
       box: {},
       route:'signin',
       isSignedIn: false,
       user: {
-        id: '123',
+        id: '',
         name: '',
         email: '',
         entries: 0,
         joined: ''
       }
-    }
-  }
+    
+}
 
+class App extends Component{
+  constructor(){
+    super();
+    this.state = initialState;
+  }
   loadUser = (data) => {
     this.setState( {user: {
       id: data.id,
@@ -43,12 +46,6 @@ class App extends Component{
     }})
   }
 
-  // componentDidMount(){
-  //   fetch('http://localhost:3000')
-  //     .then(response => response.json())
-  //     .then(console.log)
-  // }
-
   calculateFaceLocation = (data) => {
     const claraifaiFace = data.outputs[0].data.regions[0].region_info.bounding_box
     const image = document.getElementById('inputimage');
@@ -57,14 +54,13 @@ class App extends Component{
     return {
       leftCol: claraifaiFace.left_col * width,
       topRow: claraifaiFace.top_row * height,
-      rightCol: width - (claraifaiFace.rightcol * width),
+      rightCol: width - (claraifaiFace.right_col * width),
       bottomRow: height - (claraifaiFace.bottom_row * height)
     }
   }
 
-
-
   displayFaceBox = (box) => {
+    console.log(box)
     this.setState({box:box});
   }
 
@@ -74,56 +70,31 @@ class App extends Component{
 
   onButtonSubmit = () => {
     this.setState({imageUrl: this.state.input})
-    app.models
-    .predict(
-      Clarifai.FACE_DETECT_MODEL, 
-      this.state.input
-      )
-
-    .then(response =>this.displayFaceBox(this.calculateFaceLocation(response)))
+    app.models.predict(
+      Clarifai.FACE_DETECT_MODEL, this.state.input)
+      .then(response =>{
+      if (response){
+        fetch('http://localhost:3000/image', {
+          method: 'put',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            id: this.state.user.id
+          })
+        })
+        .then(response => response.json())
+        .then(count => {
+          this.setState(Object.assign(this.state.user, { entries: count }))
+        })
+        .catch(console.log);
+      }
+      this.displayFaceBox(this.calculateFaceLocation(response))
+      })
     .catch(err => console.log(err));
   }
 
-
-
- //  onButtonSubmit = () => {
- //    this.setState({imageUrl: this.state.input});
- //    app.models
- //      .predict(
- //    // HEADS UP! Sometimes the Clarifai Models can be down or not working as they are constantly getting updated.
- //    // A good way to check if the model you are using is up, is to check them on the clarifai website. For example,
- //    // for the Face Detect Mode: https://www.clarifai.com/models/face-detection
- //    // If that isn't working, then that means you will have to wait until their servers are back up. Another solution
- //    // is to use a different version of their model that works like the ones found here: https://github.com/Clarifai/clarifai-javascript/blob/master/src/index.js
- //    // so you would change from:
- //    // .predict(Clarifai.FACE_DETECT_MODEL, this.state.input)
- //    // to:
- //    // .predict('53e1df302c079b3db8a0a36033ed2d15', this.state.input)
- //        Clarifai.FACE_DETECT_MODEL,
- //        this.state.input)
- //      .then(response => {
- //        console.log('hi', response)
- //        if (response) {
- //          fetch('http://localhost:3000/image', {
- //            method: 'put',
- //            headers: {'Content-Type': 'application/json'},
- //            body: JSON.stringify({
- //              id: this.state.user.id
- //            })
- //          })
- //            .then(response => response.json())
- //            .then(count => {
- //              this.setState(Object.assign(this.state.user, { entries: count}))
- //            })
-
- //        }
- //        this.displayFaceBox(this.calculateFaceLocation(response))
- //      })
- //      .catch(err => console.log(err));
- // }
   onRouteChange = (route) => {
     if(route === 'signout'){
-      this.setState({isSignedIn: false})
+      this.setState(initialState)
     } else if (route === 'home'){
       this.setState({isSignedIn:true})
     }
@@ -141,19 +112,19 @@ class App extends Component{
         { this.state.route === 'home' ?
             <div>
               <Logo />
-              <Rank/>
+              <Rank name={this.state.user.name} entries = {this.state.user.entries}/>
               <ImageLinkForm 
               onInputChange={this.onInputChange}
               onButtonSubmit={this.onButtonSubmit}
               />
               <FaceRecognition 
-              box={box}
-              imageUrl={imageUrl}
+              box={this.state.box}
+              imageUrl={this.state.imageUrl}
               />
             </div>
             : (
               route === 'signin'
-              ? <SignIn onRouteChange={this.onRouteChange}/>
+              ? <SignIn loadUser={this.loadUser}  onRouteChange={this.onRouteChange}/>
               : <Register loadUser={this.loadUser} onRouteChange={this.onRouteChange}/>
               )
         }
